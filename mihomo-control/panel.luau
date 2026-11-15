@@ -473,53 +473,32 @@ local function status_chip()
   })
 end
 
--- Режим из ui.select.onChange. Шэлл зовёт (index, text); логи шэлла показывают
--- 0-based индекс (Global -> 1, Direct -> 2), но контракт не гарантирован, поэтому
--- решает текст опции (он стабилен), а индекс — запасной путь, понимающий и 0-, и
--- 1-based нумерацию.
-local MODE_KEYS = { "panel.mode_rule", "panel.mode_global", "panel.mode_direct" }
-
-
-local function mode_from_select(index_text, text_text)
-  for i, key in ipairs(MODE_KEYS) do
-    if text_text ~= nil and noctalia.tr(key) == text_text then
-      return MODES[i]
-    end
-  end
-  local n = tonumber(index_text)
-  if n == nil then
-    return nil
-  end
-  return MODES[n + 1] or MODES[n]
+local function mode_button(key, mode, current)
+  local active = mode == current
+  return ui.button({
+    text = noctalia.tr(key),
+    tooltip = noctalia.tr("panel.mode_" .. mode),
+    variant = "outline",
+    selected = active,
+    onClick = function()
+      if not active then
+        send_command({ op = "mode", mode = mode })
+      end
+    end,
+  })
 end
 
 local function controls_row()
   local mode = snapshot.config.mode or "rule"
-  local index = 0
-  for i, candidate in MODES do
-    if candidate == mode then
-      index = i - 1
-      break
-    end
-  end
+  -- Три кнопки вместо ui.select: выпадающий список в панели не доставлял
+  -- onChange (клик не менял режим), а кнопки в этой же панели работают.
   return ui.row({ gap = 8, align = "center" }, {
-    ui.select({
-      options = {
-        noctalia.tr("panel.mode_rule"),
-        noctalia.tr("panel.mode_global"),
-        noctalia.tr("panel.mode_direct"),
-      },
-      selectedIndex = index,
-      onChange = function(index_text, text_text)
-        local chosen = mode_from_select(index_text, text_text)
-        if chosen then
-          send_command({ op = "mode", mode = chosen })
-        end
-      end,
-    }),
+    mode_button("panel.mode_rule", "rule", mode),
+    mode_button("panel.mode_global", "global", mode),
+    mode_button("panel.mode_direct", "direct", mode),
     ui.button({
       text = noctalia.tr("panel.restart"),
-      variant = "outline",
+      variant = "ghost",
       onClick = function()
         send_command({ op = "restart" })
       end,
